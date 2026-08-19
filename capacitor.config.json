@@ -1,0 +1,21 @@
+{
+  "appId": "com.mafiagame.app",
+  "appName": "Mafia",
+  "webDir": "www",
+  "server": {
+    "allowNavigation": ["*.peerjs.com", "peerjs.com"]
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#1a1a2e",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#1a1a2e",
+      "showSpinner": false
+    }
+  }
+}

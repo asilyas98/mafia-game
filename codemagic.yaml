@@ -1,0 +1,67 @@
+workflows:
+  ios-app-store:
+    name: Mafia – iOS App Store
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.mafiagame.app
+      vars:
+        XCODE_WORKSPACE: ios/App/App.xcworkspace
+        XCODE_SCHEME: App
+        APP_STORE_APPLE_ID: 1234567890   # ← Replace with your App Store app numeric ID
+      node: v20.11.0
+      xcode: latest
+      cocoapods: default
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+
+      - name: Generate Capacitor iOS project
+        script: |
+          npx cap add ios || true
+          npx cap sync ios
+
+      - name: Generate app icons and splash screens
+        script: |
+          npx @capacitor/assets generate \
+            --ios \
+            --iconBackgroundColor '#1a1a2e' \
+            --splashBackgroundColor '#1a1a2e'
+
+      - name: Set build number
+        script: agvtool new-version -all $BUILD_NUMBER
+        working_directory: ios/App
+
+      - name: Build iOS app
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        submit_to_app_store: false
+      email:
+        recipients:
+          - asilyas98@gmail.com
+        notify:
+          success: true
+          failure: true

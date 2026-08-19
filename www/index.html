@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mafia</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+<style>
+  :root {
+    --bg:#0d0d0d; --surface:#1a1a1a; --surface2:#242424; --border:#333;
+    --accent:#c0392b; --accent2:#e74c3c; --gold:#f1c40f;
+    --blue:#2980b9; --blue2:#3498db; --green:#27ae60; --green2:#2ecc71;
+    --text:#eee; --muted:#888; --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+  .screen{display:none;width:100%;max-width:520px;padding:24px 16px;flex-direction:column;align-items:center;gap:16px;}
+  .screen.active{display:flex;}
+
+  /* TYPOGRAPHY */
+  .logo{font-size:2.8rem;font-weight:900;letter-spacing:6px;color:var(--accent2);text-shadow:0 0 30px rgba(231,76,60,.5);text-transform:uppercase;}
+  .subtitle{color:var(--muted);font-size:.9rem;letter-spacing:2px;text-transform:uppercase;}
+  h2{font-size:1.3rem;font-weight:700;text-align:center;}
+  h3{font-size:1rem;color:var(--muted);text-align:center;font-weight:500;}
+  .info{color:var(--muted);font-size:.88rem;text-align:center;line-height:1.5;}
+  .err{color:var(--accent2);font-size:.85rem;text-align:center;}
+  .divider{width:100%;height:1px;background:var(--border);}
+  .row{display:flex;gap:10px;width:100%;} .row .btn{flex:1;}
+  .mode-divider{display:flex;align-items:center;gap:12px;width:100%;color:var(--muted);font-size:.75rem;letter-spacing:2px;text-transform:uppercase;}
+  .mode-divider::before,.mode-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  /* CARD / BUTTON / INPUT */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;width:100%;}
+  .btn{border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;transition:all .15s;width:100%;}
+  .btn:active{transform:scale(.97);} .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-red{background:var(--accent);color:#fff;} .btn-red:hover:not(:disabled){background:var(--accent2);}
+  .btn-blue{background:var(--blue);color:#fff;} .btn-blue:hover:not(:disabled){background:var(--blue2);}
+  .btn-green{background:var(--green);color:#fff;} .btn-green:hover:not(:disabled){background:var(--green2);}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);} .btn-ghost:hover{border-color:var(--text);color:var(--text);}
+  .btn-gold{background:var(--gold);color:#111;}
+  .btn-sm{padding:8px 14px;font-size:.85rem;width:auto;}
+  input[type=text]{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px 14px;font-size:1rem;width:100%;outline:none;}
+  input[type=text]:focus{border-color:var(--accent2);}
+  input[type=text].upper{text-transform:uppercase;letter-spacing:3px;}
+
+  /* TAGS */
+  .tag{display:inline-block;border-radius:4px;padding:2px 8px;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+  .tag-red{background:rgba(192,57,43,.3);color:#e74c3c;} .tag-blue{background:rgba(41,128,185,.3);color:#3498db;}
+  .tag-gold{background:rgba(241,196,15,.2);color:#f1c40f;} .tag-green{background:rgba(39,174,96,.25);color:#2ecc71;}
+  .tag-gray{background:rgba(136,136,136,.2);color:#aaa;}
+
+  /* ROOM CODE */
+  .room-code-big{font-size:3.5rem;font-weight:900;letter-spacing:10px;color:var(--gold);text-shadow:0 0 20px rgba(241,196,15,.4);text-align:center;}
+  .room-code-label{color:var(--muted);font-size:.8rem;letter-spacing:2px;text-transform:uppercase;text-align:center;}
+
+  /* PLAYER LIST */
+  .player-list{display:flex;flex-direction:column;gap:6px;width:100%;}
+  .player-item{display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:8px;padding:10px 14px;}
+  .player-item span{flex:1;font-weight:500;}
+  .player-item button{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:2px 6px;border-radius:4px;}
+  .player-item button:hover{color:var(--accent2);background:rgba(231,76,60,.1);}
+  .player-item .badge{font-size:.75rem;background:rgba(241,196,15,.15);color:var(--gold);border-radius:4px;padding:2px 8px;}
+
+  /* REVEAL GRID */
+  .reveal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;}
+  .reveal-btn{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px 12px;cursor:pointer;text-align:center;font-size:1rem;font-weight:600;transition:all .15s;position:relative;}
+  .reveal-btn:hover{border-color:var(--accent2);} .reveal-btn.done{opacity:.45;}
+  .reveal-btn .check{position:absolute;top:6px;right:8px;font-size:.75rem;color:var(--green2);}
+
+  /* ROLE CARD */
+  .role-card{border-radius:var(--radius);padding:32px 24px;text-align:center;width:100%;}
+  .role-card.mafia   {background:linear-gradient(135deg,#2c0a0a,#5a1010);border:2px solid #c0392b;}
+  .role-card.doctor  {background:linear-gradient(135deg,#0a1f2c,#0d3d5e);border:2px solid #2980b9;}
+  .role-card.police  {background:linear-gradient(135deg,#1a1a0a,#3d3a00);border:2px solid #f1c40f;}
+  .role-card.civilian{background:linear-gradient(135deg,#0d1f0d,#1a3a1a);border:2px solid #27ae60;}
+  .role-icon{font-size:3.5rem;margin-bottom:10px;}
+  .role-name{font-size:2rem;font-weight:900;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;}
+  .role-name-big{font-size:1.8rem;font-weight:900;letter-spacing:3px;text-transform:uppercase;}
+  .role-desc{color:rgba(255,255,255,.75);font-size:.9rem;line-height:1.5;}
+  .role-desc-text{color:rgba(255,255,255,.7);font-size:.9rem;line-height:1.5;margin-top:6px;}
+  .role-player{font-size:.85rem;color:rgba(255,255,255,.5);margin-bottom:16px;text-transform:uppercase;letter-spacing:2px;}
+  .role-player-label{font-size:.8rem;color:rgba(255,255,255,.45);margin-bottom:10px;text-transform:uppercase;letter-spacing:2px;}
+  .role-allies{margin-top:12px;font-size:.85rem;color:rgba(255,255,255,.6);background:rgba(0,0,0,.3);border-radius:6px;padding:8px 12px;}
+
+  /* PHASE BADGE */
+  .phase-badge{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:.8rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+  .phase-badge.night{color:#9b59b6;border-color:#9b59b6;} .phase-badge.day{color:var(--gold);border-color:var(--gold);}
+  .round-pill{background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.4);border-radius:20px;padding:4px 14px;font-size:.85rem;color:var(--accent2);font-weight:700;}
+
+  /* PnP ACTION ITEMS */
+  .action-grid{display:flex;flex-direction:column;gap:8px;width:100%;}
+  .action-player{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;cursor:pointer;font-size:1rem;font-weight:500;transition:all .15s;display:flex;align-items:center;gap:10px;}
+  .action-player:hover{border-color:var(--accent2);background:rgba(231,76,60,.08);}
+  .action-player.selected     {border-color:var(--accent2);background:rgba(231,76,60,.15);}
+  .action-player.selected-blue{border-color:var(--blue2);  background:rgba(52,152,219,.15);}
+  .action-player.selected-gold{border-color:var(--gold);   background:rgba(241,196,15,.1);}
+  .action-player .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .dot-red{background:var(--accent2);} .dot-blue{background:var(--blue2);}
+  .dot-gold{background:var(--gold);} .dot-green{background:var(--green2);} .dot-gray{background:var(--muted);}
+
+  /* Online ACTION ITEMS */
+  .action-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;cursor:pointer;font-size:1rem;font-weight:500;transition:all .15s;display:flex;align-items:center;gap:10px;}
+  .action-item:hover{border-color:var(--accent2);background:rgba(231,76,60,.08);}
+  .action-item.sel-red {border-color:var(--accent2);background:rgba(231,76,60,.15);}
+  .action-item.sel-blue{border-color:var(--blue2);  background:rgba(52,152,219,.15);}
+  .action-item.sel-gold{border-color:var(--gold);   background:rgba(241,196,15,.1);}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+
+  /* PnP VOTE */
+  .vote-row{display:flex;flex-direction:column;gap:4px;width:100%;}
+  .vote-player-row{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+  .vote-player-row .name{flex:1;font-weight:500;}
+  .vote-count{font-size:1.1rem;font-weight:700;min-width:24px;text-align:center;}
+  .vote-btns{display:flex;gap:6px;}
+  .vote-btns button{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.85rem;}
+  .vote-btns button:hover{border-color:var(--accent2);}
+
+  /* ONLINE VOTE TALLY */
+  .tally-row{display:flex;flex-direction:column;gap:4px;width:100%;}
+  .tally-item{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;}
+  .tally-name{flex:1;font-weight:500;}
+  .tally-bar-wrap{width:80px;background:var(--border);border-radius:4px;height:6px;overflow:hidden;}
+  .tally-bar{height:100%;background:var(--accent2);border-radius:4px;transition:width .3s;}
+  .tally-count{font-weight:700;font-size:.9rem;min-width:20px;text-align:right;}
+
+  /* ANNOUNCEMENTS */
+  .announcement{background:var(--surface2);border-left:4px solid var(--accent2);border-radius:8px;padding:16px;font-size:.95rem;line-height:1.6;width:100%;}
+  .announcement.gold{border-color:var(--gold);}
+  .announce{background:var(--surface2);border-left:4px solid var(--accent2);border-radius:8px;padding:16px;font-size:.95rem;line-height:1.6;width:100%;}
+  .announce.gold{border-color:var(--gold);}
+
+  /* INVESTIGATE */
+  .invest-result{border-radius:10px;padding:18px;text-align:center;font-size:1.1rem;font-weight:700;width:100%;}
+  .invest-result.is-mafia {background:rgba(192,57,43,.25);border:2px solid var(--accent);}
+  .invest-result.not-mafia{background:rgba(39,174,96,.20); border:2px solid var(--green);}
+  .invest-box{border-radius:10px;padding:20px;text-align:center;font-size:1.1rem;font-weight:700;width:100%;}
+  .invest-box.guilty{background:rgba(192,57,43,.25);border:2px solid var(--accent);}
+  .invest-box.clear {background:rgba(39,174,96,.2); border:2px solid var(--green);}
+
+  /* WIN */
+  .win-banner{border-radius:var(--radius);padding:32px;text-align:center;width:100%;}
+  .win-banner.town {background:linear-gradient(135deg,#0d1f0d,#1a4a1a);border:2px solid var(--green2);}
+  .win-banner.mafia{background:linear-gradient(135deg,#2c0a0a,#5a1010);border:2px solid var(--accent2);}
+  .win-icon{font-size:4rem;margin-bottom:12px;}
+  .win-title{font-size:2rem;font-weight:900;margin-bottom:8px;text-transform:uppercase;letter-spacing:4px;}
+
+  /* STATUS */
+  .status-bar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;}
+  .status-chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:.8rem;display:flex;align-items:center;gap:6px;}
+
+  /* CHAT */
+  .chat-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;width:100%;height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+  .chat-msg{font-size:.88rem;line-height:1.4;}
+  .chat-msg .sender{font-weight:700;color:var(--blue2);margin-right:6px;}
+  .chat-row{display:flex;gap:8px;width:100%;}
+  .chat-row input{flex:1;}
+  .chat-row button{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:0 16px;cursor:pointer;font-weight:600;white-space:nowrap;}
+
+  /* PASS SCREEN */
+  .pass-card{background:var(--surface);border:2px solid #444;border-radius:20px;padding:40px 24px;text-align:center;width:100%;}
+  .pass-name{font-size:2.4rem;font-weight:900;letter-spacing:2px;margin-bottom:6px;}
+  .pass-sub{color:var(--muted);font-size:.9rem;}
+  .pass-progress{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;width:100%;}
+  .pass-dot{width:10px;height:10px;border-radius:50%;background:var(--border);}
+  .pass-dot.done{background:var(--green2);} .pass-dot.current{background:var(--accent2);}
+
+  /* CIVILIAN DECOY */
+  .suspect-grid{display:flex;flex-direction:column;gap:8px;width:100%;}
+  .suspect-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;cursor:pointer;font-weight:500;transition:all .15s;}
+  .suspect-item:hover{border-color:#666;} .suspect-item.picked{border-color:var(--accent2);background:rgba(231,76,60,.1);}
+
+  /* MISC */
+  .eyes-banner{background:#111;border:1px dashed #444;border-radius:10px;padding:12px 18px;font-size:.88rem;color:#666;text-align:center;width:100%;letter-spacing:1px;}
+  .night-icon{font-size:4rem;margin:16px 0;}
+  .host-only{display:none!important;} body.is-host .host-only{display:flex!important;}
+  .story-box{background:var(--surface2);border:1px solid var(--gold);border-radius:10px;padding:16px;font-size:.95rem;line-height:1.7;font-style:italic;color:var(--gold);width:100%;}
+  .waiting-hint{background:rgba(255,255,255,.03);border:1px dashed #444;border-radius:8px;padding:12px 16px;font-size:.85rem;color:#555;text-align:center;width:100%;}
+
+  /* STEPPERS */
+  .stepper-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:10px;}
+  .stepper-row:last-child{border-bottom:none;}
+  .stepper-label{flex:1;font-weight:500;font-size:.95rem;}
+  .stepper-controls{display:flex;align-items:center;gap:10px;}
+  .stepper-btn{width:34px;height:34px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:all .15s;}
+  .stepper-btn:hover:not([disabled]){border-color:var(--accent2);color:var(--accent2);}
+  .stepper-btn[disabled]{opacity:.25;cursor:not-allowed;}
+  .stepper-val{font-size:1.1rem;font-weight:700;min-width:22px;text-align:center;}
+  .stepper-max{font-size:.75rem;color:var(--muted);}
+
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+  .pulse{animation:pulse 2s infinite;}
+</style>
+</head>
+<body>
+
+<!-- ============================= HOME ============================= -->
+<div class="screen active" id="screen-home">
+  <div style="height:24px"></div>
+  <div class="logo">MAFIA</div>
+  <div class="subtitle">Who can you trust?</div>
+  <div style="height:4px"></div>
+  <div class="card" style="text-align:center">
+    <p style="color:var(--muted);font-size:.9rem;line-height:1.6">
+      One phone, pass around — or everyone plays on their own device online.
+    </p>
+  </div>
+  <button class="btn btn-red" onclick="show('screen-setup')">🎮 Pass &amp; Play</button>
+  <div class="mode-divider">Online</div>
+  <button class="btn btn-blue" onclick="initCreateRoom()">🏠 Create Room</button>
+  <button class="btn btn-ghost" onclick="show('s-join')">🔗 Join Room</button>
+  <button class="btn btn-ghost" style="font-size:.85rem;padding:8px" onclick="show('screen-rules')">How to Play</button>
+</div>
+
+<!-- ============================= RULES ============================= -->
+<div class="screen" id="screen-rules">
+  <div class="logo" style="font-size:1.8rem">How to Play</div>
+  <div class="card" style="gap:12px;display:flex;flex-direction:column">
+    <div>
+      <div style="font-weight:700;margin-bottom:4px">🌙 Night Phase</div>
+      <div style="color:var(--muted);font-size:.88rem;line-height:1.5">Everyone passes the phone privately (or acts on their own device). Mafia kills. Doctor saves. Police investigates. Civilians make a blind guess.</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div style="font-weight:700;margin-bottom:4px">☀️ Day Phase</div>
+      <div style="color:var(--muted);font-size:.88rem;line-height:1.5">Everyone discusses and votes. Majority needed to eliminate a suspect.</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div style="font-weight:700;margin-bottom:4px">🏆 Win Conditions</div>
+      <div style="color:var(--muted);font-size:.88rem;line-height:1.5">
+        <b style="color:var(--green2)">Town wins</b> — all Mafia eliminated.<br>
+        <b style="color:var(--accent2)">Mafia wins</b> — Mafia equals or outnumbers town.
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div style="font-weight:700;margin-bottom:4px">Roles</div>
+      <div style="color:var(--muted);font-size:.88rem;line-height:1.5">
+        🔴 <b>Mafia</b> — kills one person each night<br>
+        🔵 <b>Doctor</b> — saves one person (including self)<br>
+        🟡 <b>Police</b> — learns if their target is Mafia<br>
+        🟢 <b>Civilian</b> — votes and reasons to survive
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-ghost" onclick="show('screen-home')">Back</button>
+</div>
+
+<!-- ==================== PASS & PLAY SCREENS ==================== -->
+
+<!-- PnP: SETUP -->
+<div class="screen" id="screen-setup">
+  <div class="logo" style="font-size:1.8rem">Players</div>
+  <div class="info">Add at least 5 players. Pass the phone or enter all names now.</div>
+  <div class="card" style="gap:12px;display:flex;flex-direction:column">
+    <div style="display:flex;gap:8px">
+      <input type="text" id="pnp-name-input" placeholder="Player name…" maxlength="20" onkeydown="if(event.key==='Enter')pnpAddPlayer()">
+      <button class="btn btn-red btn-sm" onclick="pnpAddPlayer()">Add</button>
+    </div>
+    <div class="player-list" id="pnp-player-list"></div>
+  </div>
+  <div class="card" id="pnp-role-settings-card" style="display:none">
+    <div style="font-size:.78rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">⚙️ Role Counts (optional)</div>
+    <div class="stepper-row">
+      <div class="stepper-label">🔴 Mafia</div>
+      <div class="stepper-controls">
+        <button class="stepper-btn" id="pnp-mafia-minus" onclick="pnpChangeRole('mafia',-1)">−</button>
+        <span class="stepper-val" id="pnp-mafia-val">1</span>
+        <span class="stepper-max" id="pnp-mafia-max">/ 1</span>
+        <button class="stepper-btn" id="pnp-mafia-plus" onclick="pnpChangeRole('mafia',1)">+</button>
+      </div>
+    </div>
+    <div class="stepper-row">
+      <div class="stepper-label">🔵 Doctor</div>
+      <div class="stepper-controls">
+        <button class="stepper-btn" id="pnp-doctor-minus" onclick="pnpChangeRole('doctor',-1)">−</button>
+        <span class="stepper-val" id="pnp-doctor-val">1</span>
+        <span class="stepper-max" id="pnp-doctor-max">/ 1</span>
+        <button class="stepper-btn" id="pnp-doctor-plus" onclick="pnpChangeRole('doctor',1)">+</button>
+      </div>
+    </div>
+    <div class="stepper-row">
+      <div class="stepper-label">🟡 Police</div>
+      <div class="stepper-controls">
+        <button class="stepper-btn" id="pnp-police-minus" onclick="pnpChangeRole('police',-1)">−</button>
+        <span class="stepper-val" id="pnp-police-val">1</span>
+        <span class="stepper-max" id="pnp-police-max">/ 1</span>
+        <button class="stepper-btn" id="pnp-police-plus" onclick="pnpChangeRole('police',1)">+</button>
+      </div>
+    </div>
+  </div>
+  <div id="pnp-setup-error" style="color:var(--accent2);font-size:.88rem;text-align:center;display:none"></div>
+  <button class="btn btn-green" onclick="pnpStartGame()">Start Game →</button>
+  <button class="btn btn-ghost" onclick="show('screen-home')">Back</button>
+</div>
+
+<!-- PnP: ROLE REVEAL -->
+<div class="screen" id="screen-reveal">
+  <div class="phase-badge night pulse">🌙 Role Reveal</div>
+  <h2>Tap your name — alone!</h2>
+  <div class="info">Each player privately reads their role, taps "Got it", then passes back.</div>
+  <div class="reveal-grid" id="pnp-reveal-grid"></div>
+  <button class="btn btn-red" id="pnp-reveal-done-btn" onclick="pnpStartNight()" style="display:none">Everyone's Ready → Begin Night</button>
+</div>
+
+<!-- PnP: ROLE VIEW (private) -->
+<div class="screen" id="screen-role-view">
+  <div class="phase-badge night">Private — don't show anyone!</div>
+  <div class="role-card" id="pnp-role-card">
+    <div class="role-icon" id="pnp-rv-icon"></div>
+    <div class="role-player" id="pnp-rv-player"></div>
+    <div class="role-name" id="pnp-rv-rolename"></div>
+    <div class="role-desc" id="pnp-rv-desc"></div>
+  </div>
+  <button class="btn btn-ghost" onclick="pnpCloseRoleView()">Got it — hide my role</button>
+</div>
+
+<!-- PnP: PASS SCREEN -->
+<div class="screen" id="screen-pass">
+  <div class="phase-badge night pulse">🌙 Night Phase</div>
+  <div class="round-pill" id="pnp-pass-round">Round 1</div>
+  <div class="eyes-banner">😴 Everyone else — eyes closed or look away</div>
+  <div class="pass-card">
+    <div class="pass-sub">Pass the phone to</div>
+    <div class="pass-name" id="pnp-pass-name">—</div>
+    <div class="pass-sub" style="margin-top:4px">Only you look at the next screen</div>
+  </div>
+  <div class="pass-progress" id="pnp-pass-progress"></div>
+  <button class="btn btn-gold" onclick="pnpProceedNight()">I'm <span id="pnp-pass-name-inline">—</span>, I'm ready →</button>
+</div>
+
+<!-- PnP: POLICE ACTION -->
+<div class="screen" id="screen-police">
+  <div class="phase-badge night">🟡 Your turn — Private</div>
+  <h2>Investigate one player</h2>
+  <div class="info">You will learn if your target is Mafia or not.</div>
+  <div class="action-grid" id="pnp-police-grid"></div>
+  <button class="btn btn-gold" id="pnp-police-confirm" onclick="pnpConfirmPolice()" disabled>Investigate →</button>
+</div>
+
+<!-- PnP: POLICE RESULT -->
+<div class="screen" id="screen-police-result">
+  <div class="phase-badge night">🟡 Investigation Result</div>
+  <div class="invest-result" id="pnp-invest-result-box">
+    <div id="pnp-invest-result-text"></div>
+  </div>
+  <div class="info">Remember this — don't reveal it unless it's safe.</div>
+  <button class="btn btn-ghost" onclick="pnpDoneCurrentPlayer()">Understood — close</button>
+</div>
+
+<!-- PnP: DOCTOR ACTION -->
+<div class="screen" id="screen-doctor">
+  <div class="phase-badge night">🔵 Your turn — Private</div>
+  <h2>Protect someone tonight</h2>
+  <div class="info">Choose one person to save — even yourself.</div>
+  <div class="action-grid" id="pnp-doctor-grid"></div>
+  <button class="btn btn-blue" id="pnp-doctor-confirm" onclick="pnpConfirmDoctor()" disabled>Protect →</button>
+</div>
+
+<!-- PnP: MAFIA ACTION -->
+<div class="screen" id="screen-mafia">
+  <div class="phase-badge night">🔴 Your turn — Private</div>
+  <h2>Choose your victim</h2>
+  <div class="info">Pick one player to eliminate tonight.</div>
+  <div class="action-grid" id="pnp-mafia-grid"></div>
+  <button class="btn btn-red" id="pnp-mafia-confirm" onclick="pnpConfirmMafia()" disabled>Confirm →</button>
+</div>
+
+<!-- PnP: CIVILIAN DECOY -->
+<div class="screen" id="screen-civilian">
+  <div class="phase-badge night">🟢 Your turn</div>
+  <h2>Who do you suspect?</h2>
+  <div class="info">Pick your gut feeling — this is just between you and the night.</div>
+  <div class="suspect-grid" id="pnp-civilian-grid"></div>
+  <button class="btn btn-ghost" onclick="pnpDoneCurrentPlayer()">Done →</button>
+</div>
+
+<!-- PnP: NIGHT RESULTS -->
+<div class="screen" id="screen-night-results">
+  <div class="phase-badge day">☀️ Morning</div>
+  <div class="round-pill" id="pnp-results-round">Round 1 Results</div>
+  <div class="announcement" id="pnp-night-announce"></div>
+  <div id="pnp-story-display" style="display:none" class="story-box"></div>
+  <button class="btn btn-red" onclick="pnpStartDay()">☀️ Begin Discussion →</button>
+</div>
+
+<!-- PnP: DAY PHASE -->
+<div class="screen" id="screen-day">
+  <div class="phase-badge day pulse">☀️ Day — Discussion &amp; Vote</div>
+  <div class="round-pill" id="pnp-day-round">Round 1</div>
+  <div class="status-bar" id="pnp-day-status"></div>
+  <h2>🗳️ Vote to Eliminate</h2>
+  <div class="info" id="pnp-vote-majority-info">Majority needed to eliminate.</div>
+  <div class="vote-row" id="pnp-vote-grid"></div>
+  <div id="pnp-day-error" style="color:var(--accent2);font-size:.88rem;text-align:center;display:none"></div>
+  <button class="btn btn-red" onclick="pnpResolveVotes()">Reveal Vote Results →</button>
+</div>
+
+<!-- PnP: VOTE RESULT -->
+<div class="screen" id="screen-vote-result">
+  <div class="phase-badge day">🗳️ Elimination</div>
+  <div class="announcement" id="pnp-vote-result-announce"></div>
+  <div id="pnp-vote-story-display" style="display:none" class="story-box"></div>
+  <button class="btn btn-red" onclick="pnpNextRound()">Next Round →</button>
+</div>
+
+<!-- PnP: WIN -->
+<div class="screen" id="screen-win">
+  <div class="win-banner" id="pnp-win-banner">
+    <div class="win-icon" id="pnp-win-icon"></div>
+    <div class="win-title" id="pnp-win-title"></div>
+    <div style="color:rgba(255,255,255,.7);margin-top:8px;font-size:.95rem" id="pnp-win-desc"></div>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;gap:8px">
+    <h3>Final Roles Revealed</h3>
+    <div id="pnp-win-players"></div>
+  </div>
+  <button class="btn btn-red" onclick="location.reload()">Play Again</button>
+</div>
+
+<!-- ==================== ONLINE SCREENS ==================== -->
+
+<!-- ONLINE: CREATE ROOM -->
+<div class="screen" id="s-create">
+  <div class="room-code-label">Share this code</div>
+  <div class="room-code-big" id="rc-display">----</div>
+  <div class="info">Players join from their own device using this code</div>
+  <div class="card" style="gap:10px;display:flex;flex-direction:column">
+    <h3>Your name (host)</h3>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="host-name-input" placeholder="Enter your name…" maxlength="18">
+      <button class="btn btn-ghost btn-sm" onclick="setHostName()">Set</button>
+    </div>
+    <div id="host-name-set" style="display:none;color:var(--green2);font-size:.88rem;text-align:center">✓ Name set!</div>
+  </div>
+  <div class="card" style="gap:8px;display:flex;flex-direction:column">
+    <h3>Lobby — <span id="lobby-count">0</span> / 5+ players</h3>
+    <div class="player-list" id="lobby-list"><div class="info">Waiting for players…</div></div>
+  </div>
+  <div class="card" id="online-role-settings" style="display:none">
+    <div style="font-size:.78rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">⚙️ Role Counts (optional)</div>
+    <div class="stepper-row">
+      <div class="stepper-label">🔴 Mafia</div>
+      <div class="stepper-controls">
+        <button class="stepper-btn" id="o-mafia-minus" onclick="onlineChangeRole('mafia',-1)">−</button>
+        <span class="stepper-val" id="o-mafia-val">1</span>
+        <span class="stepper-max" id="o-mafia-max">/ 1</span>
+        <button class="stepper-btn" id="o-mafia-plus" onclick="onlineChangeRole('mafia',1)">+</button>
+      </div>
+    </div>
+    <div class="stepper-row">
+      <div class="stepper-label">🔵 Doctor</div>
+      <div class="stepper-controls">
+        <button class="stepper-btn" id="o-doctor-minus" onclick="onlineChangeRole('doctor',-1)">−</button>
+        <span class="stepper-val" id="o-doctor-val">1</span>
+        <span class="stepper-max" id="o-doctor-max">/ 1</span>
+        <button class="stepper-btn" id="o-doctor-plus" onclick="onlineChangeRole('doctor',1)">+</button>
+      </div>
+    </div>
+    <div class="stepper-row">
+      <div class="stepper-label">🟡 Police</div>
+      <div class="stepper-controls">
+        <button class="stepper-btn" id="o-police-minus" onclick="onlineChangeRole('police',-1)">−</button>
+        <span class="stepper-val" id="o-police-val">1</span>
+        <span class="stepper-max" id="o-police-max">/ 1</span>
+        <button class="stepper-btn" id="o-police-plus" onclick="onlineChangeRole('police',1)">+</button>
+      </div>
+    </div>
+  </div>
+  <div id="create-err" class="err" style="display:none"></div>
+  <button class="btn btn-green" id="start-btn" onclick="hostStartGame()" disabled>Waiting for players…</button>
+  <button class="btn btn-ghost" onclick="show('screen-home')">Back</button>
+</div>
+
+<!-- ONLINE: JOIN ROOM -->
+<div class="screen" id="s-join">
+  <div class="logo" style="font-size:1.6rem">Join Room</div>
+  <div class="card" style="gap:12px;display:flex;flex-direction:column">
+    <input type="text" id="join-code" class="upper" placeholder="Room code (e.g. AB3X)" maxlength="4">
+    <input type="text" id="join-name" placeholder="Your name" maxlength="18">
+    <div id="join-err" class="err" style="display:none"></div>
+    <button class="btn btn-blue" onclick="joinRoom()">Join →</button>
+  </div>
+  <button class="btn btn-ghost" onclick="show('screen-home')">Back</button>
+</div>
+
+<!-- ONLINE: WAITING (client pre-game) -->
+<div class="screen" id="s-waiting">
+  <div class="phase-badge" style="animation:pulse 2s infinite">⏳ Lobby</div>
+  <div style="text-align:center">
+    <div class="room-code-label">Room</div>
+    <div class="room-code-big" id="waiting-code" style="font-size:2.4rem">----</div>
+  </div>
+  <div class="card" style="gap:8px;display:flex;flex-direction:column">
+    <h3>Players</h3>
+    <div class="player-list" id="waiting-list"></div>
+  </div>
+  <div class="waiting-hint">Waiting for the host to start the game…</div>
+</div>
+
+<!-- ONLINE: ROLE REVEAL -->
+<div class="screen" id="s-role-reveal">
+  <div class="phase-badge night">🌙 Your Role — Private</div>
+  <div class="role-card" id="rv-card">
+    <div class="role-icon" id="rv-icon">❓</div>
+    <div class="role-player-label" id="rv-player-label"></div>
+    <div class="role-name-big" id="rv-role-name"></div>
+    <div class="role-desc-text" id="rv-desc"></div>
+    <div class="role-allies" id="rv-allies" style="display:none"></div>
+  </div>
+  <div class="info">Don't show anyone else your screen.</div>
+  <button class="btn btn-ghost" onclick="onRoleReady()">I understand my role →</button>
+</div>
+
+<!-- ONLINE: PRE-NIGHT -->
+<div class="screen" id="s-pre-night">
+  <div class="phase-badge night" style="animation:pulse 2s infinite">🌙 Night is falling…</div>
+  <div class="round-pill" id="pn-round">Round 1</div>
+  <div class="night-icon">🌑</div>
+  <div class="status-bar" id="pn-status"></div>
+  <button class="btn btn-gold host-only" onclick="hostBeginNight()">Begin Night →</button>
+  <div class="waiting-hint" id="pn-client-hint">Waiting for host to begin the night…</div>
+</div>
+
+<!-- ONLINE: NIGHT ACTION -->
+<div class="screen" id="s-night-action">
+  <div class="phase-badge night">🌙 Night — Private</div>
+  <div class="round-pill" id="na-round">Round 1</div>
+  <h2 id="na-title">Choose your target</h2>
+  <div class="info" id="na-desc"></div>
+  <div class="action-grid" id="na-grid"></div>
+  <button class="btn" id="na-btn" onclick="submitNightAction()" disabled>Submit →</button>
+</div>
+
+<!-- ONLINE: INVESTIGATE RESULT -->
+<div class="screen" id="s-invest-result">
+  <div class="phase-badge night">🟡 Investigation Result</div>
+  <div class="invest-box" id="ir-box"></div>
+  <div class="info">Keep this to yourself — use it wisely.</div>
+  <button class="btn btn-ghost" onclick="show('s-night-wait')">Understood →</button>
+</div>
+
+<!-- ONLINE: NIGHT WAIT -->
+<div class="screen" id="s-night-wait">
+  <div class="phase-badge night" style="animation:pulse 2s infinite">🌙 Night Phase</div>
+  <div class="round-pill" id="nw-round">Round 1</div>
+  <div class="night-icon">😴</div>
+  <h2>Eyes closed…</h2>
+  <div class="info" id="nw-desc">Wait while the night plays out.</div>
+</div>
+
+<!-- ONLINE: MORNING -->
+<div class="screen" id="s-morning">
+  <div class="phase-badge day">☀️ Morning — Round <span id="mr-round">1</span></div>
+  <div class="announce" id="mr-announce"></div>
+  <div class="story-box" id="mr-story" style="display:none"></div>
+  <div class="status-bar" id="mr-status"></div>
+  <button class="btn btn-red host-only" onclick="hostBeginDay()">☀️ Begin Discussion →</button>
+  <div class="waiting-hint" id="mr-client-hint">Waiting for host to start the discussion…</div>
+</div>
+
+<!-- ONLINE: DAY PHASE -->
+<div class="screen" id="s-day">
+  <div class="phase-badge day" style="animation:pulse 2s infinite">☀️ Discussion</div>
+  <div class="round-pill" id="online-day-round">Round 1</div>
+  <div class="status-bar" id="online-day-status"></div>
+  <div class="card" style="gap:10px;display:flex;flex-direction:column">
+    <h3>💬 Town Chat</h3>
+    <div class="chat-box" id="chat-box"></div>
+    <div class="chat-row">
+      <input type="text" id="chat-input" placeholder="Say something…" onkeydown="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()">Send</button>
+    </div>
+  </div>
+  <h2>🗳️ Cast Your Vote</h2>
+  <div class="info" id="majority-hint">Majority needed to eliminate.</div>
+  <div class="action-grid" id="online-vote-grid"></div>
+  <div id="vote-submitted-msg" style="display:none;color:var(--green2);text-align:center;font-weight:600;font-size:.95rem">✅ Vote submitted! Waiting for others…</div>
+  <button class="btn btn-red" id="vote-submit-btn" onclick="submitVote()" disabled>Submit Vote</button>
+  <div id="tally-section" style="width:100%;display:none">
+    <h3>Live Tally</h3>
+    <div class="tally-row" id="tally-grid"></div>
+    <div class="info" id="tally-remaining"></div>
+  </div>
+  <button class="btn btn-ghost host-only" onclick="hostResolveVotes()" style="font-size:.85rem">Force vote resolution (host)</button>
+</div>
+
+<!-- ONLINE: VOTE RESULT -->
+<div class="screen" id="s-vote-result">
+  <div class="phase-badge day">🗳️ Elimination</div>
+  <div class="announce" id="vr-announce"></div>
+  <div class="story-box" id="vr-story" style="display:none"></div>
+  <div class="status-bar" id="vr-status"></div>
+  <button class="btn btn-red host-only" onclick="hostBeginNight()">Next Round →</button>
+  <div class="waiting-hint" id="vr-client-hint">Waiting for next round…</div>
+</div>
+
+<!-- ONLINE: GAME OVER -->
+<div class="screen" id="s-gameover">
+  <div class="win-banner" id="go-banner">
+    <div class="win-icon" id="go-icon"></div>
+    <div class="win-title" id="go-title"></div>
+    <div id="go-desc" style="color:rgba(255,255,255,.7);margin-top:8px;font-size:.95rem"></div>
+  </div>
+  <div class="card" style="gap:8px;display:flex;flex-direction:column">
+    <h3>Roles Revealed</h3>
+    <div id="go-players"></div>
+  </div>
+  <button class="btn btn-red" onclick="location.reload()">Play Again</button>
+</div>
+
+<script>
+'use strict';
+
+// ================================================================
+// SHARED
+// ================================================================
+const DEATH_STORIES = [
+  "☕ They asked for decaf at midnight. Bad idea.",
+  "🍕 Found poisoned breadcrumbs in their pizza. Truly tragic.",
+  "🚗 Their GPS said 'turn left' into the river.",
+  "📱 Died waiting for 4G signal. We'll miss them.",
+  "🧦 Slipped on a wet sock at 2am. Classic.",
+  "🎵 They skipped the Mafia's favorite song. Once.",
+  "🪤 The trap was a mouse trap. They were not a mouse.",
+  "🌮 The mystery meat taco finally claimed a life.",
+  "🛁 Slipped reading a very suspicious newspaper in the tub.",
+  "🕯️ Their scented candle had an unusual scent.",
+  "🎲 Lost a coin flip in the worst possible way.",
+  "🍦 Ice cream truck lured them into the dark alley.",
+  "📺 Watched one too many true crime documentaries.",
+  "🎭 Said 'I trust everyone here' and really meant it.",
+  "🌙 Walked outside to check if the moon was full. It was.",
+  "🔦 Their flashlight had dead batteries at the worst moment.",
+];
+
+const ROLE_INFO = {
+  mafia:    { icon:'🔴', label:'MAFIA',    color:'mafia',    desc:'Kill one person each night. Blend in during the day.' },
+  doctor:   { icon:'🔵', label:'DOCTOR',   color:'doctor',   desc:'Protect one person each night — even yourself.' },
+  police:   { icon:'🟡', label:'POLICE',   color:'police',   desc:'Investigate one player each night. You will learn if they are Mafia.' },
+  civilian: { icon:'🟢', label:'CIVILIAN', color:'civilian', desc:'Vote wisely. The town depends on you.' },
+};
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function roleTag(role) {
+  const colors = { mafia:'red', doctor:'blue', police:'gold', civilian:'green' };
+  const icons  = { mafia:'🔴', doctor:'🔵', police:'🟡', civilian:'🟢' };
+  const names  = { mafia:'Mafia', doctor:'Doctor', police:'Police', civilian:'Civilian' };
+  return `<span class="tag tag-${colors[role]||'gray'}">${icons[role]||'⚪'} ${names[role]||role}</span>`;
+}
+
+function randStory() { return DEATH_STORIES[Math.floor(Math.random() * DEATH_STORIES.length)]; }
+
+// ================================================================
+// PASS & PLAY — STATE
+// ================================================================
+let pnpPlayers    = [];
+let pnpRoleCounts = { mafia:1, doctor:1, police:1 };
+let pnpRound      = 0;
+let pnpPoliceTarget = null, pnpDoctorTarget = null, pnpMafiaTarget = null;
+let pnpLastDied   = null, pnpLastSaved = false;
+let pnpVotes      = {};
+let pnpRevealedCount = 0;
+let pnpNightQueue = [], pnpNightQueueIdx = 0;
+let pnpNightSelected = {};
+let pnpNightPool  = {};   // { role: [names…] } — avoids JSON-in-onclick bug
+let pnpCurrentRevealIdx = null;
+
+// ================================================================
+// PASS & PLAY — UTILS
+// ================================================================
+function pnpAlive()  { return pnpPlayers.filter(p => p.alive); }
+function pnpMafia()  { return pnpPlayers.filter(p => p.role === 'mafia' && p.alive); }
+function pnpTown()   { return pnpPlayers.filter(p => p.role !== 'mafia' && p.alive); }
+function pnpRoleColor(r) { return {mafia:'red',doctor:'blue',police:'gold',civilian:'green'}[r]||'gray'; }
+
+function pnpShowErr(id, msg) { const e=document.getElementById(id); e.textContent=msg; e.style.display='block'; }
+function pnpClearErr(id)     { document.getElementById(id).style.display='none'; }
+
+// ================================================================
+// PASS & PLAY — SETUP
+// ================================================================
+function pnpAddPlayer() {
+  const inp  = document.getElementById('pnp-name-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (pnpPlayers.find(p => p.name.toLowerCase() === name.toLowerCase())) {
+    pnpShowErr('pnp-setup-error', 'Name already added!'); return;
+  }
+  pnpPlayers.push({ name, role: null, alive: true });
+  inp.value = '';
+  pnpRenderPlayerList();
+  pnpClearErr('pnp-setup-error');
+  inp.focus();
+}
+
+function pnpRemovePlayer(i) { pnpPlayers.splice(i, 1); pnpRenderPlayerList(); }
+
+function pnpRenderPlayerList() {
+  const el = document.getElementById('pnp-player-list');
+  if (!pnpPlayers.length) { el.innerHTML = '<div class="info" style="padding:8px 0">No players yet</div>'; return; }
+  el.innerHTML = pnpPlayers.map((p, i) =>
+    `<div class="player-item"><span>${p.name}</span><button onclick="pnpRemovePlayer(${i})">✕</button></div>`
+  ).join('');
+  pnpRenderRoleSettings();
+}
+
+function pnpRenderRoleSettings() {
+  const card = document.getElementById('pnp-role-settings-card');
+  if (pnpPlayers.length < 5) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  const max = Math.max(1, Math.floor(pnpPlayers.length / 5));
+  ['mafia','doctor','police'].forEach(role => {
+    if (pnpRoleCounts[role] > max) pnpRoleCounts[role] = max;
+    document.getElementById(`pnp-${role}-val`).textContent = pnpRoleCounts[role];
+    document.getElementById(`pnp-${role}-max`).textContent = `/ ${max}`;
+    document.getElementById(`pnp-${role}-minus`).disabled = pnpRoleCounts[role] <= 1;
+    document.getElementById(`pnp-${role}-plus`).disabled  = pnpRoleCounts[role] >= max;
+  });
+}
+
+function pnpChangeRole(role, delta) {
+  const max = Math.max(1, Math.floor(pnpPlayers.length / 5));
+  pnpRoleCounts[role] = Math.min(max, Math.max(1, pnpRoleCounts[role] + delta));
+  pnpRenderRoleSettings();
+}
+
+function pnpAssignRoles() {
+  const arr = [];
+  for (let i = 0; i < pnpRoleCounts.mafia;  i++) arr.push('mafia');
+  for (let i = 0; i < pnpRoleCounts.doctor; i++) arr.push('doctor');
+  for (let i = 0; i < pnpRoleCounts.police; i++) arr.push('police');
+  while (arr.length < pnpPlayers.length) arr.push('civilian');
+  const s = shuffle(arr);
+  pnpPlayers.forEach((p, i) => p.role = s[i]);
+}
+
+function pnpStartGame() {
+  if (pnpPlayers.length < 5) { pnpShowErr('pnp-setup-error', 'Need at least 5 players!'); return; }
+  const totalSpecial = pnpRoleCounts.mafia + pnpRoleCounts.doctor + pnpRoleCounts.police;
+  if (totalSpecial >= pnpPlayers.length) {
+    pnpShowErr('pnp-setup-error', 'Too many special roles! Reduce role counts or add more players.'); return;
+  }
+  pnpAssignRoles();
+  pnpRevealedCount = 0;
+  pnpRound = 0;
+  pnpRenderRevealGrid();
+  show('screen-reveal');
+}
+
+// ================================================================
+// PASS & PLAY — ROLE REVEAL
+// ================================================================
+function pnpRenderRevealGrid() {
+  document.getElementById('pnp-reveal-grid').innerHTML = pnpPlayers.map((p, i) =>
+    `<button class="reveal-btn" id="pnp-revbtn-${i}" onclick="pnpShowRole(${i})">
+      ${p.name}<span class="check" id="pnp-revcheck-${i}" style="display:none">✓</span>
+    </button>`
+  ).join('');
+  document.getElementById('pnp-reveal-done-btn').style.display = 'none';
+}
+
+function pnpShowRole(i) {
+  pnpCurrentRevealIdx = i;
+  const p = pnpPlayers[i];
+  const info = ROLE_INFO[p.role];
+  const descs = {
+    mafia:    'You kill one person each night. Blend in during the day.',
+    doctor:   'Each night, choose one person to save — even yourself.',
+    police:   "Each night, investigate one player. You'll learn if they are Mafia.",
+    civilian: 'Use your wits and vote wisely. The town needs you.',
+  };
+  document.getElementById('pnp-role-card').className  = `role-card ${info.color}`;
+  document.getElementById('pnp-rv-icon').textContent   = info.icon;
+  document.getElementById('pnp-rv-player').textContent = p.name;
+  document.getElementById('pnp-rv-rolename').textContent = info.label;
+  document.getElementById('pnp-rv-desc').textContent   = descs[p.role];
+  show('screen-role-view');
+}
+
+function pnpCloseRoleView() {
+  const i   = pnpCurrentRevealIdx;
+  const btn = document.getElementById(`pnp-revbtn-${i}`);
+  const chk = document.getElementById(`pnp-revcheck-${i}`);
+  if (!btn.classList.contains('done')) {
+    btn.classList.add('done');
+    chk.style.display = 'inline';
+    pnpRevealedCount++;
+  }
+  if (pnpRevealedCount === pnpPlayers.length) {
+    document.getElementById('pnp-reveal-done-btn').style.display = 'flex';
+  }
+  show('screen-reveal');
+}
+
+// ================================================================
+// PASS & PLAY — NIGHT PHASE
+// ================================================================
+function pnpStartNight() {
+  pnpRound++;
+  pnpPoliceTarget = pnpDoctorTarget = pnpMafiaTarget = pnpLastDied = null;
+  pnpLastSaved = false;
+  pnpNightQueue    = shuffle(pnpAlive());
+  pnpNightQueueIdx = 0;
+  pnpShowPassScreen();
+}
+
+function pnpShowPassScreen() {
+  if (pnpNightQueueIdx >= pnpNightQueue.length) { pnpResolveNight(); return; }
+  const cur = pnpNightQueue[pnpNightQueueIdx];
+  document.getElementById('pnp-pass-round').textContent     = `Round ${pnpRound}`;
+  document.getElementById('pnp-pass-name').textContent       = cur.name;
+  document.getElementById('pnp-pass-name-inline').textContent = cur.name;
+  document.getElementById('pnp-pass-progress').innerHTML = pnpNightQueue.map((p, i) => {
+    const cls = i < pnpNightQueueIdx ? 'done' : i === pnpNightQueueIdx ? 'current' : '';
+    return `<div class="pass-dot ${cls}"></div>`;
+  }).join('');
+  show('screen-pass');
+}
+
+function pnpProceedNight() {
+  const cur  = pnpNightQueue[pnpNightQueueIdx];
+  const role = cur.role;
+  if (role === 'police') {
+    pnpRenderActionGrid('police', pnpAlive().filter(p => p.name !== cur.name), 'selected-gold');
+    document.getElementById('pnp-police-confirm').disabled = true;
+    show('screen-police');
+  } else if (role === 'doctor') {
+    pnpRenderActionGrid('doctor', pnpAlive(), 'selected-blue');
+    document.getElementById('pnp-doctor-confirm').disabled = true;
+    show('screen-doctor');
+  } else if (role === 'mafia') {
+    pnpRenderActionGrid('mafia', pnpAlive().filter(p => p.role !== 'mafia'), 'selected');
+    document.getElementById('pnp-mafia-confirm').disabled = true;
+    show('screen-mafia');
+  } else {
+    document.getElementById('pnp-civilian-grid').innerHTML =
+      pnpAlive().filter(p => p.name !== cur.name).map(p =>
+        `<div class="suspect-item" onclick="pnpPickSuspect(this)">${p.name}</div>`
+      ).join('');
+    show('screen-civilian');
+  }
+}
+
+function pnpRenderActionGrid(role, pool, selClass) {
+  pnpNightPool[role] = pool.map(p => p.name);
+  document.getElementById(`pnp-${role}-grid`).innerHTML = pool.map(p =>
+    `<div class="action-player" id="pnp-${role}-opt-${CSS.escape(p.name)}"
+       onclick="pnpSelectTarget('${role}',this.dataset.name,'${selClass}')"
+       data-name="${p.name.replace(/"/g,'&quot;')}">
+      <div class="dot dot-gray"></div>${p.name}
+    </div>`
+  ).join('');
+  pnpNightSelected[role] = null;
+}
+
+function pnpSelectTarget(role, name, cls) {
+  (pnpNightPool[role] || []).forEach(n => {
+    const el = document.getElementById(`pnp-${role}-opt-${CSS.escape(n)}`);
+    if (el) el.className = 'action-player';
+  });
+  const el = document.getElementById(`pnp-${role}-opt-${CSS.escape(name)}`);
+  if (el) el.className = `action-player ${cls}`;
+  pnpNightSelected[role] = name;
+  document.getElementById(`pnp-${role}-confirm`).disabled = false;
+}
+
+function pnpPickSuspect(el) {
+  document.querySelectorAll('.suspect-item').forEach(x => x.classList.remove('picked'));
+  el.classList.add('picked');
+}
+
+function pnpConfirmPolice() {
+  pnpPoliceTarget = pnpNightSelected['police'];
+  if (!pnpPoliceTarget) return;
+  const target = pnpPlayers.find(p => p.name === pnpPoliceTarget);
+  const isM = target && target.role === 'mafia';
+  const box = document.getElementById('pnp-invest-result-box');
+  const txt = document.getElementById('pnp-invest-result-text');
+  box.className = isM ? 'invest-result is-mafia' : 'invest-result not-mafia';
+  txt.innerHTML = isM
+    ? `🚨 <b>${pnpPoliceTarget}</b> IS Mafia!`
+    : `✅ <b>${pnpPoliceTarget}</b> is NOT Mafia.`;
+  show('screen-police-result');
+}
+
+function pnpConfirmDoctor() {
+  pnpDoctorTarget = pnpNightSelected['doctor'];
+  if (!pnpDoctorTarget) return;
+  pnpDoneCurrentPlayer();
+}
+
+function pnpConfirmMafia() {
+  pnpMafiaTarget = pnpNightSelected['mafia'];
+  if (!pnpMafiaTarget) return;
+  pnpDoneCurrentPlayer();
+}
+
+function pnpDoneCurrentPlayer() {
+  pnpNightQueueIdx++;
+  pnpShowPassScreen();
+}
+
+// ================================================================
+// PASS & PLAY — RESOLVE NIGHT
+// ================================================================
+function pnpResolveNight() {
+  pnpLastSaved = !!(pnpMafiaTarget && pnpMafiaTarget === pnpDoctorTarget);
+  if (pnpMafiaTarget && !pnpLastSaved) {
+    const v = pnpPlayers.find(p => p.name === pnpMafiaTarget);
+    if (v) v.alive = false;
+    pnpLastDied = pnpMafiaTarget;
+  } else {
+    pnpLastDied = null;
+  }
+
+  let msg;
+  if (!pnpMafiaTarget) {
+    msg = '🌙 The night was eerily quiet… Nobody was targeted.';
+  } else if (pnpLastSaved) {
+    msg = `🌙 The Mafia had a target, but someone was watching over <b>${pnpMafiaTarget}</b>. Everyone survives this round.`;
+  } else {
+    msg = `🌙 Morning came. <b>${pnpLastDied}</b> was found dead. The town is shaken.`;
+  }
+
+  document.getElementById('pnp-night-announce').innerHTML = msg;
+  document.getElementById('pnp-results-round').textContent = `Round ${pnpRound} Results`;
+
+  const storyEl = document.getElementById('pnp-story-display');
+  if (pnpLastDied) {
+    storyEl.style.display = 'block';
+    storyEl.textContent   = `📰 "${pnpLastDied}: ${randStory()}"`;
+  } else {
+    storyEl.style.display = 'none';
+  }
+
+  const w = pnpCheckWin();
+  if (w) { pnpShowWin(w); return; }
+  show('screen-night-results');
+}
+
+// ================================================================
+// PASS & PLAY — DAY PHASE
+// ================================================================
+function pnpStartDay() {
+  pnpVotes = {};
+  pnpAlive().forEach(p => { pnpVotes[p.name] = 0; });
+  document.getElementById('pnp-day-round').textContent = `Round ${pnpRound}`;
+  document.getElementById('pnp-day-error').style.display = 'none';
+  pnpRenderDayStatus();
+  pnpRenderVoteGrid();
+  show('screen-day');
+}
+
+function pnpRenderDayStatus() {
+  document.getElementById('pnp-day-status').innerHTML =
+    `<div class="status-chip">👥 ${pnpAlive().length} alive</div>
+     <div class="status-chip" style="border-color:#e74c3c;color:#e74c3c">🔴 ${pnpMafia().length} Mafia</div>
+     <div class="status-chip" style="border-color:#2ecc71;color:#2ecc71">🟢 ${pnpTown().length} Town</div>`;
+}
+
+function pnpRenderVoteGrid() {
+  const majority = Math.floor(pnpAlive().length / 2) + 1;
+  document.getElementById('pnp-vote-majority-info').textContent =
+    `Need ${majority} vote${majority!==1?'s':''} (majority of ${pnpAlive().length}) to eliminate.`;
+  document.getElementById('pnp-vote-grid').innerHTML = pnpAlive().map(p =>
+    `<div class="vote-player-row">
+      <div class="name">${p.name}</div>
+      <div class="vote-count" id="pnp-vc-${p.name}">${pnpVotes[p.name]||0}</div>
+      <div class="vote-btns">
+        <button onclick="pnpAddVote('${p.name}',1)">+1</button>
+        <button onclick="pnpAddVote('${p.name}',-1)">−</button>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function pnpAddVote(name, d) {
+  pnpVotes[name] = Math.max(0, (pnpVotes[name]||0) + d);
+  document.getElementById(`pnp-vc-${name}`).textContent = pnpVotes[name];
+}
+
+function pnpResolveVotes() {
+  const entries = Object.entries(pnpVotes);
+  if (entries.every(([,v]) => v === 0)) { pnpShowErr('pnp-day-error','Cast some votes first!'); return; }
+  pnpClearErr('pnp-day-error');
+
+  const majority = Math.floor(pnpAlive().length / 2) + 1;
+  entries.sort((a,b) => b[1]-a[1]);
+  const topCount = entries[0][1];
+
+  if (topCount < majority) {
+    document.getElementById('pnp-vote-result-announce').innerHTML =
+      `🗳️ No majority reached — <b>${topCount}</b> vote${topCount!==1?'s':''} for the top suspect, but <b>${majority}</b> needed. No one is eliminated this round.`;
+    document.getElementById('pnp-vote-story-display').style.display = 'none';
+    const w = pnpCheckWin();
+    if (w) { pnpShowWin(w); return; }
+    show('screen-vote-result');
+    return;
+  }
+
+  const tied = entries.filter(([,v]) => v === topCount);
+  let eliminated, msg;
+  if (tied.length > 1) {
+    eliminated = tied[Math.floor(Math.random()*tied.length)][0];
+    msg = `🗳️ Tie! Fate chose <b>${eliminated}</b> — eliminated from the game.`;
+  } else {
+    eliminated = entries[0][0];
+    msg = `🗳️ <b>${eliminated}</b> has been eliminated with ${topCount} vote${topCount!==1?'s':''}.`;
+  }
+
+  const t = pnpPlayers.find(p => p.name === eliminated);
+  if (t) t.alive = false;
+
+  document.getElementById('pnp-vote-result-announce').innerHTML = msg;
+  const vDisp = document.getElementById('pnp-vote-story-display');
+  vDisp.style.display = 'block';
+  vDisp.textContent   = `📰 "${eliminated}: ${randStory()}"`;
+
+  const w = pnpCheckWin();
+  if (w) { pnpShowWin(w); return; }
+  show('screen-vote-result');
+}
+
+function pnpNextRound() {
+  const w = pnpCheckWin();
+  if (w) { pnpShowWin(w); return; }
+  pnpStartNight();
+}
+
+// ================================================================
+// PASS & PLAY — WIN
+// ================================================================
+function pnpCheckWin() {
+  const m = pnpMafia().length;
+  const t = pnpTown().length;
+  if (m === 0) return 'town';
+  if (m >= t)  return 'mafia';
+  return null;
+}
+
+function pnpShowWin(winner) {
+  document.getElementById('pnp-win-banner').className = `win-banner ${winner}`;
+  document.getElementById('pnp-win-icon').textContent  = winner === 'town' ? '🏆' : '🔴';
+  document.getElementById('pnp-win-title').textContent = winner === 'town' ? 'Town Wins!' : 'Mafia Wins!';
+  document.getElementById('pnp-win-desc').textContent  = winner === 'town'
+    ? 'All Mafia have been eliminated. Justice prevails!'
+    : 'The Mafia now controls the town. Better luck next time.';
+  document.getElementById('pnp-win-players').innerHTML = pnpPlayers.map(p =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;${!p.alive?'text-decoration:line-through;color:var(--muted)':''}">${p.name}</span>
+      ${roleTag(p.role)}
+      <span>${p.alive?'🟢':'💀'}</span>
+    </div>`
+  ).join('');
+  show('screen-win');
+}
+
+// ================================================================
+// ONLINE — CONSTANTS & STATE
+// ================================================================
+const PEER_PREFIX = 'mafiagame2026-';
+const MIN_PLAYERS = 5;
+
+let isHost   = false;
+let myPeer   = null;
+let hostConn = null;
+let myName   = '';
+let myRole   = '';
+let myAllies = [];
+let roomCode = '';
+let nightSel = null;
+let voteSel  = null;
+let onlineRoleCounts = { mafia:1, doctor:1, police:1 };
+
+const H = {
+  conns:{}, players:[], round:0, phase:'lobby',
+  nightPending:new Set(), nightActions:{},
+  activeMafia:'', votes:{}, votePending:new Set(),
+};
+const C = { alivePlayers:[], round:0, hasVoted:false };
+
+// ================================================================
+// ONLINE — NETWORK HELPERS
+// ================================================================
+function broadcast(data) { Object.values(H.conns).forEach(c => { if(c.open) c.send(data); }); }
+function sendTo(name,data) { const c=H.conns[name]; if(c&&c.open) c.send(data); }
+function nameOf(conn) { return Object.keys(H.conns).find(n => H.conns[n]===conn); }
+
+function genCode() {
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return [0,1,2,3].map(()=>c[Math.floor(Math.random()*c.length)]).join('');
+}
+
+// ================================================================
+// ONLINE — HOST: ROOM CREATION
+// ================================================================
+function initCreateRoom() {
+  isHost = true;
+  document.body.classList.add('is-host');
+  roomCode = genCode();
+  document.getElementById('rc-display').textContent = roomCode;
+  show('s-create');
+
+  myPeer = new Peer(PEER_PREFIX + roomCode);
+  myPeer.on('open', () => {});
+  myPeer.on('error', err => {
+    if (err.type === 'unavailable-id') { myPeer.destroy(); initCreateRoom(); }
+    else {
+      const e = document.getElementById('create-err');
+      e.textContent = 'Connection error: ' + err.type;
+      e.style.display = 'block';
+    }
+  });
+  myPeer.on('connection', conn => {
+    conn.on('data', msg => hostHandleMsg(conn, msg));
+    conn.on('close', () => {
+      const name = nameOf(conn);
+      if (!name) return;
+      delete H.conns[name];
+      if (H.phase === 'lobby') { H.players = H.players.filter(p=>p.name!==name); hostUpdateLobby(); }
+    });
+  });
+}
+
+function setHostName() {
+  const name = document.getElementById('host-name-input').value.trim();
+  if (!name || H.players.find(p=>p.name===name)) return;
+  myName = name;
+  H.players.unshift({ name, role:null, alive:true, isHost:true });
+  document.getElementById('host-name-input').disabled = true;
+  document.getElementById('host-name-set').style.display = 'block';
+  hostUpdateLobby();
+}
+
+function hostUpdateLobby() {
+  const count = H.players.length;
+  document.getElementById('lobby-count').textContent = count;
+  document.getElementById('lobby-list').innerHTML = H.players.map(p =>
+    `<div class="player-item"><span>${p.name}</span>${p.isHost?'<span class="badge">Host</span>':''}</div>`
+  ).join('') || '<div class="info">Waiting for players…</div>';
+
+  const ready = count >= MIN_PLAYERS && !!myName;
+  const btn   = document.getElementById('start-btn');
+  btn.disabled    = !ready;
+  btn.textContent = ready ? `Start Game (${count} players) →` : `Waiting for players… (${count}/${MIN_PLAYERS})`;
+
+  broadcast({ type:'player_list', players:H.players.map(p=>p.name) });
+  updateOnlineRoleSettings();
+}
+
+function updateOnlineRoleSettings() {
+  const panel = document.getElementById('online-role-settings');
+  const count = H.players.length;
+  if (count < MIN_PLAYERS) { panel.style.display='none'; return; }
+  panel.style.display = 'block';
+  const max = Math.max(1, Math.floor(count/5));
+  ['mafia','doctor','police'].forEach(role => {
+    if (onlineRoleCounts[role] > max) onlineRoleCounts[role] = max;
+    document.getElementById(`o-${role}-val`).textContent = onlineRoleCounts[role];
+    document.getElementById(`o-${role}-max`).textContent = `/ ${max}`;
+    document.getElementById(`o-${role}-minus`).disabled  = onlineRoleCounts[role] <= 1;
+    document.getElementById(`o-${role}-plus`).disabled   = onlineRoleCounts[role] >= max;
+  });
+}
+
+function onlineChangeRole(role, delta) {
+  const max = Math.max(1, Math.floor(H.players.length/5));
+  onlineRoleCounts[role] = Math.min(max, Math.max(1, onlineRoleCounts[role]+delta));
+  updateOnlineRoleSettings();
+}
+
+// ================================================================
+// ONLINE — HOST: HANDLE MESSAGES
+// ================================================================
+function hostHandleMsg(conn, msg) {
+  switch(msg.type) {
+    case 'join': {
+      const name = msg.name.trim();
+      if (!name || H.players.find(p=>p.name===name)) { conn.send({type:'error',text:'Name taken or invalid.'}); return; }
+      if (H.phase !== 'lobby') { conn.send({type:'error',text:'Game already started.'}); return; }
+      H.conns[name] = conn;
+      H.players.push({ name, role:null, alive:true });
+      conn.send({ type:'welcome', code:roomCode, players:H.players.map(p=>p.name) });
+      hostUpdateLobby();
+      break;
+    }
+    case 'night_action': {
+      const name   = nameOf(conn);
+      const player = H.players.find(p=>p.name===name);
+      if (!player||!player.alive) return;
+      hostReceiveNightAction(name, player.role, msg.target);
+      break;
+    }
+    case 'vote': {
+      const name = nameOf(conn);
+      if (!name||!H.votePending.has(name)) return;
+      hostReceiveVote(name, msg.target);
+      break;
+    }
+    case 'chat': {
+      const name = nameOf(conn);
+      broadcast({ type:'chat', from:name, message:msg.message });
+      appendChat(name, msg.message);
+      break;
+    }
+  }
+}
+
+// ================================================================
+// ONLINE — HOST: GAME START
+// ================================================================
+function hostStartGame() {
+  if (H.players.length < MIN_PLAYERS || !myName) return;
+  const n = H.players.length;
+  const totalSpecial = onlineRoleCounts.mafia + onlineRoleCounts.doctor + onlineRoleCounts.police;
+  if (totalSpecial >= n) {
+    const e = document.getElementById('create-err');
+    e.textContent = 'Too many special roles for this player count!';
+    e.style.display = 'block';
+    return;
+  }
+
+  const arr = [];
+  for (let i=0; i<onlineRoleCounts.mafia;  i++) arr.push('mafia');
+  for (let i=0; i<onlineRoleCounts.doctor; i++) arr.push('doctor');
+  for (let i=0; i<onlineRoleCounts.police; i++) arr.push('police');
+  while (arr.length < n) arr.push('civilian');
+  const roles = shuffle(arr);
+  H.players.forEach((p,i) => p.role = roles[i]);
+  H.phase = 'role-reveal';
+  H.round = 0;
+
+  const mafiaNames = H.players.filter(p=>p.role==='mafia').map(p=>p.name);
+  H.activeMafia    = mafiaNames[0] || '';
+  broadcast({ type:'game_starting' });
+
+  H.players.forEach(p => {
+    const data = { type:'your_role', role:p.role, allies:p.role==='mafia'?mafiaNames.filter(n=>n!==p.name):[], isActiveMafia:p.name===H.activeMafia };
+    if (p.isHost) { myRole=p.role; myAllies=data.allies; showRoleReveal(p.role,data.allies,data.isActiveMafia); }
+    else sendTo(p.name, data);
+  });
+}
+
+// ================================================================
+// ONLINE — HOST: NIGHT
+// ================================================================
+function hostBeginNight() {
+  H.round++;
+  H.nightActions = {};
+  H.nightPending = new Set();
+  const alive      = H.players.filter(p=>p.alive);
+  const aliveNames = alive.map(p=>p.name);
+  const nonMafia   = alive.filter(p=>p.role!=='mafia').map(p=>p.name);
+
+  if (alive.some(p=>p.role==='police')) H.nightPending.add('police');
+  if (alive.some(p=>p.role==='doctor')) H.nightPending.add('doctor');
+  if (alive.some(p=>p.role==='mafia'))  H.nightPending.add('mafia');
+
+  if (!alive.find(p=>p.name===H.activeMafia&&p.role==='mafia')) {
+    const nm = alive.find(p=>p.role==='mafia');
+    H.activeMafia = nm ? nm.name : '';
+  }
+
+  broadcast({ type:'night_beginning', round:H.round, alivePlayers:aliveNames });
+
+  if (H.nightPending.size === 0) {
+    showNightWait(H.round, 'No night actions needed — skipping to morning…');
+    setTimeout(hostResolveNight, 1200);
+    return;
+  }
+
+  alive.forEach(p => {
+    const isAM = p.name === H.activeMafia;
+    let needsAction=false, actionType='', targets=[];
+    if (p.role==='police' && H.nightPending.has('police')) { needsAction=true; actionType='investigate'; targets=aliveNames.filter(n=>n!==p.name); }
+    else if (p.role==='doctor' && H.nightPending.has('doctor')) { needsAction=true; actionType='protect'; targets=aliveNames; }
+    else if (p.role==='mafia' && isAM && H.nightPending.has('mafia')) { needsAction=true; actionType='kill'; targets=nonMafia; }
+
+    if (p.name === myName) {
+      nightSel = null;
+      if (needsAction) showNightAction(actionType, targets, H.round);
+      else if (p.role==='mafia'&&!isAM) showNightWait(H.round,"Your partner is choosing tonight's target…");
+      else showNightWait(H.round, '');
+    } else {
+      sendTo(p.name, { type:'night_start', round:H.round, needsAction, actionType, targets, isPassiveMafia:p.role==='mafia'&&!isAM });
+    }
+  });
+}
+
+function hostReceiveNightAction(playerName, role, target) {
+  if (!H.nightPending.has(role)) return;
+  if (role === 'police') {
+    const t = H.players.find(p=>p.name===target);
+    const isMafia = !!(t&&t.role==='mafia');
+    if (playerName===myName) showInvestResult(target, isMafia);
+    else sendTo(playerName, { type:'invest_result', target, isMafia });
+  }
+  H.nightActions[role] = target;
+  H.nightPending.delete(role);
+  if (H.nightPending.size===0) hostResolveNight();
+}
+
+function hostResolveNight() {
+  const kill  = H.nightActions['mafia'];
+  const save  = H.nightActions['doctor'];
+  const saved = !!(kill&&kill===save);
+  let died    = null;
+  if (kill&&!saved) { const v=H.players.find(p=>p.name===kill); if(v){v.alive=false;died=kill;} }
+
+  const msg = !kill ? '🌙 The night was peaceful. No one was targeted.'
+    : saved ? '🌙 Someone was targeted — but the Doctor intervened! Everyone survives.'
+    : `🌙 Morning arrived. <b>${died}</b> was found dead.`;
+
+  const story      = died ? randStory() : null;
+  const aliveNames = H.players.filter(p=>p.alive).map(p=>p.name);
+  const winner     = hostCheckWin();
+  const data = { type:'morning', round:H.round, message:msg, died, story, alivePlayers:aliveNames, winner, allPlayers:winner?H.players:null };
+  broadcast(data);
+  showMorning(data);
+  H.phase = 'morning';
+}
+
+// ================================================================
+// ONLINE — HOST: DAY
+// ================================================================
+function hostBeginDay() {
+  H.votes      = {};
+  H.votePending = new Set(H.players.filter(p=>p.alive).map(p=>p.name));
+  H.phase      = 'day';
+  const aliveNames = H.players.filter(p=>p.alive).map(p=>p.name);
+  const msg = { type:'day_start', round:H.round, alivePlayers:aliveNames };
+  broadcast(msg);
+  C.hasVoted = false; voteSel = null;
+  showDay(msg);
+}
+
+function hostReceiveVote(voterName, target) {
+  H.votes[voterName] = target;
+  H.votePending.delete(voterName);
+  const tally = buildTally();
+  broadcast({ type:'vote_tally', tally, remaining:H.votePending.size });
+  renderTally(tally, H.votePending.size);
+  if (H.votePending.size===0) hostResolveVotes();
+}
+
+function hostResolveVotes() {
+  if (H.phase!=='day') return;
+  const tally    = buildTally();
+  const alive    = H.players.filter(p=>p.alive);
+  const majority = Math.floor(alive.length/2)+1;
+  const sorted   = Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+  let msg, eliminated=null;
+
+  if (!sorted.length || sorted[0][1]<majority) {
+    const tv = sorted.length ? sorted[0][1] : 0;
+    msg = `🗳️ No majority reached — ${tv} vote${tv!==1?'s':''} for the top suspect, but ${majority} needed. No elimination this round.`;
+  } else {
+    const topCount = sorted[0][1];
+    const tied     = sorted.filter(([,v])=>v===topCount).map(([n])=>n);
+    eliminated     = tied[Math.floor(Math.random()*tied.length)];
+    const t        = H.players.find(p=>p.name===eliminated);
+    if (t) t.alive = false;
+    msg = tied.length>1 ? `🗳️ Tie! Fate chose <b>${eliminated}</b> — eliminated.`
+      : `🗳️ <b>${eliminated}</b> eliminated with ${topCount} vote${topCount!==1?'s':''}.`;
+  }
+
+  const story      = eliminated ? randStory() : null;
+  const aliveNames = H.players.filter(p=>p.alive).map(p=>p.name);
+  const winner     = hostCheckWin();
+  const data = { type:'vote_result', message:msg, eliminated, story, alivePlayers:aliveNames, winner, allPlayers:winner?H.players:null };
+  broadcast(data);
+  showVoteResult(data);
+  H.phase = 'vote-result';
+}
+
+function buildTally() {
+  const tally={};
+  Object.values(H.votes).forEach(t=>{ tally[t]=(tally[t]||0)+1; });
+  return tally;
+}
+
+function hostCheckWin() {
+  const alive = H.players.filter(p=>p.alive);
+  const m = alive.filter(p=>p.role==='mafia').length;
+  const t = alive.filter(p=>p.role!=='mafia').length;
+  if (m===0) return 'town';
+  if (m>=t)  return 'mafia';
+  return null;
+}
+
+// ================================================================
+// ONLINE — CLIENT: JOIN
+// ================================================================
+function joinRoom() {
+  const code  = document.getElementById('join-code').value.trim().toUpperCase();
+  const name  = document.getElementById('join-name').value.trim();
+  const errEl = document.getElementById('join-err');
+  errEl.style.display = 'none';
+  if (code.length<4) { errEl.textContent='Enter a 4-character room code'; errEl.style.display='block'; return; }
+  if (!name)         { errEl.textContent='Enter your name'; errEl.style.display='block'; return; }
+  myName=name; roomCode=code; isHost=false;
+  myPeer = new Peer();
+  myPeer.on('open', () => {
+    hostConn = myPeer.connect(PEER_PREFIX+code, { reliable:true });
+    hostConn.on('open', () => hostConn.send({ type:'join', name }));
+    hostConn.on('data', clientHandleMsg);
+    hostConn.on('error', () => { errEl.textContent='Connection failed.'; errEl.style.display='block'; });
+    hostConn.on('close', () => { if(document.querySelector('.screen.active')?.id==='s-gameover') return; alert('Disconnected from the host.'); });
+  });
+  myPeer.on('error', () => { errEl.textContent='Cannot connect. Check the room code and try again.'; errEl.style.display='block'; });
+}
+
+// ================================================================
+// ONLINE — CLIENT: MESSAGE HANDLER
+// ================================================================
+function clientHandleMsg(msg) {
+  switch(msg.type) {
+    case 'error':        document.getElementById('join-err').textContent=msg.text; document.getElementById('join-err').style.display='block'; break;
+    case 'welcome':      document.getElementById('waiting-code').textContent=msg.code; renderWaitingList(msg.players); show('s-waiting'); break;
+    case 'player_list':  renderWaitingList(msg.players); break;
+    case 'game_starting': break;
+    case 'your_role':    myRole=msg.role; myAllies=msg.allies||[]; showRoleReveal(msg.role,msg.allies||[],msg.isActiveMafia); break;
+    case 'night_beginning': C.alivePlayers=msg.alivePlayers; C.round=msg.round; showPreNight(msg.alivePlayers); break;
+    case 'night_start':
+      C.round=msg.round; nightSel=null;
+      if (msg.needsAction) showNightAction(msg.actionType,msg.targets,msg.round);
+      else if (msg.isPassiveMafia) showNightWait(msg.round,"Your partner is choosing tonight's target…");
+      else showNightWait(msg.round,'');
+      break;
+    case 'invest_result': showInvestResult(msg.target,msg.isMafia); break;
+    case 'morning':      showMorning(msg); if(msg.winner) setTimeout(()=>showGameOver(msg),2500); break;
+    case 'day_start':    C.round=msg.round; C.alivePlayers=msg.alivePlayers; C.hasVoted=false; voteSel=null; showDay(msg); break;
+    case 'chat':         appendChat(msg.from,msg.message); break;
+    case 'vote_tally':   renderTally(msg.tally,msg.remaining); break;
+    case 'vote_result':  showVoteResult(msg); if(msg.winner) setTimeout(()=>showGameOver(msg),2500); break;
+  }
+}
+
+function clientSend(data) { if(isHost) return; if(hostConn&&hostConn.open) hostConn.send(data); }
+
+// ================================================================
+// ONLINE — SHARED UI
+// ================================================================
+function renderWaitingList(players) {
+  document.getElementById('waiting-list').innerHTML =
+    (players||[]).map(n=>`<div class="player-item"><span>${n}</span></div>`).join('') || '<div class="info">Nobody yet</div>';
+}
+
+function showRoleReveal(role, allies, isActiveMafia) {
+  const info = ROLE_INFO[role];
+  document.getElementById('rv-card').className       = `role-card ${info.color}`;
+  document.getElementById('rv-icon').textContent     = info.icon;
+  document.getElementById('rv-player-label').textContent = myName;
+  document.getElementById('rv-role-name').textContent = info.label;
+  document.getElementById('rv-desc').textContent     = info.desc;
+  const alliesEl = document.getElementById('rv-allies');
+  if (allies&&allies.length) { alliesEl.style.display='block'; alliesEl.textContent=`🤝 Mafia partners: ${allies.join(', ')}`; }
+  else alliesEl.style.display='none';
+  show('s-role-reveal');
+}
+
+function onRoleReady() {
+  show('s-pre-night');
+  if (isHost) showPreNight(H.players.filter(p=>p.alive).map(p=>p.name));
+}
+
+function showPreNight(aliveNames) {
+  document.getElementById('pn-round').textContent = `Round ${isHost?H.round+1:C.round}`;
+  const mCount = isHost ? H.players.filter(p=>p.alive&&p.role==='mafia').length : '?';
+  const tCount = isHost ? H.players.filter(p=>p.alive&&p.role!=='mafia').length : '?';
+  document.getElementById('pn-status').innerHTML =
+    `<div class="status-chip">👥 ${aliveNames.length} alive</div>` +
+    (isHost ? `<div class="status-chip" style="border-color:#e74c3c;color:#e74c3c">🔴 ${mCount} Mafia</div><div class="status-chip" style="border-color:#2ecc71;color:#2ecc71">🟢 ${tCount} Town</div>` : '');
+  document.getElementById('pn-client-hint').style.display = isHost ? 'none' : 'block';
+  show('s-pre-night');
+}
+
+let onlineNightPool = [];
+function showNightAction(actionType, targets, round) {
+  document.getElementById('na-round').textContent = `Round ${round}`;
+  const configs = {
+    investigate:{ title:'Investigate one player', desc:"You'll learn if they are Mafia — privately.", btnColor:'btn-gold', selClass:'sel-gold' },
+    protect:    { title:'Protect someone tonight', desc:'They survive even if targeted by Mafia.',   btnColor:'btn-blue', selClass:'sel-blue' },
+    kill:       { title:'Choose your victim',      desc:'Pick one player to eliminate tonight.',      btnColor:'btn-red',  selClass:'sel-red'  },
+  };
+  const cfg = configs[actionType]||configs.investigate;
+  document.getElementById('na-title').textContent = cfg.title;
+  document.getElementById('na-desc').textContent  = cfg.desc;
+  const btn = document.getElementById('na-btn');
+  btn.className='btn '+cfg.btnColor; btn.textContent='Submit →'; btn.disabled=true;
+  onlineNightPool = targets;
+  document.getElementById('na-grid').innerHTML = targets.map(name =>
+    `<div class="action-item" data-name="${name.replace(/"/g,'&quot;')}" onclick="selectNight(this,'${cfg.selClass}')"><div class="dot"></div>${name}</div>`
+  ).join('');
+  nightSel = null;
+  show('s-night-action');
+}
+
+function selectNight(el, cls) {
+  document.querySelectorAll('#na-grid .action-item').forEach(x=>x.className='action-item');
+  el.className = `action-item ${cls}`;
+  nightSel = el.dataset.name;
+  document.getElementById('na-btn').disabled = false;
+}
+
+function submitNightAction() {
+  if (!nightSel) return;
+  if (isHost) hostReceiveNightAction(myName, myRole, nightSel);
+  else clientSend({ type:'night_action', target:nightSel });
+  if (myRole !== 'police') show('s-night-wait');
+}
+
+function showInvestResult(target, isMafia) {
+  const box = document.getElementById('ir-box');
+  if (isMafia) { box.className='invest-box guilty'; box.innerHTML=`🚨 <b>${target}</b> IS Mafia!`; }
+  else         { box.className='invest-box clear';  box.innerHTML=`✅ <b>${target}</b> is NOT Mafia.`; }
+  show('s-invest-result');
+}
+
+function showNightWait(round, desc) {
+  document.getElementById('nw-round').textContent = `Round ${round}`;
+  document.getElementById('nw-desc').textContent  = desc || 'Wait while the night plays out.';
+  show('s-night-wait');
+}
+
+function showMorning(data) {
+  document.getElementById('mr-round').textContent   = data.round;
+  document.getElementById('mr-announce').innerHTML  = data.message;
+  const storyEl = document.getElementById('mr-story');
+  if (data.story&&data.died) { storyEl.style.display='block'; storyEl.textContent=`📰 "${data.died}: ${data.story}"`; }
+  else storyEl.style.display='none';
+  document.getElementById('mr-status').innerHTML = `<div class="status-chip">👥 ${(data.alivePlayers||[]).length} alive</div>`;
+  document.getElementById('mr-client-hint').style.display = isHost?'none':'block';
+  if (!data.winner) show('s-morning');
+}
+
+function showDay(data) {
+  const alive = data.alivePlayers||C.alivePlayers;
+  document.getElementById('online-day-round').textContent = `Round ${data.round}`;
+  const mCount = isHost?H.players.filter(p=>p.alive&&p.role==='mafia').length:'?';
+  const tCount = isHost?H.players.filter(p=>p.alive&&p.role!=='mafia').length:'?';
+  document.getElementById('online-day-status').innerHTML =
+    `<div class="status-chip">👥 ${alive.length} alive</div>` +
+    (isHost?`<div class="status-chip" style="border-color:#e74c3c;color:#e74c3c">🔴 ${mCount} Mafia</div><div class="status-chip" style="border-color:#2ecc71;color:#2ecc71">🟢 ${tCount} Town</div>`:'');
+  const majority = Math.floor(alive.length/2)+1;
+  document.getElementById('majority-hint').textContent = `Need ${majority} vote${majority!==1?'s':''} (majority of ${alive.length}) to eliminate.`;
+  document.getElementById('chat-box').innerHTML='<div class="chat-msg" style="color:var(--muted);font-style:italic">Discussion begins… accuse wisely.</div>';
+  voteSel=null;
+  document.getElementById('online-vote-grid').innerHTML = alive.map(name =>
+    `<div class="action-item" data-name="${name.replace(/"/g,'&quot;')}" onclick="selectVote(this)"><div class="dot"></div>${name}</div>`
+  ).join('');
+  document.getElementById('vote-submit-btn').disabled=true;
+  document.getElementById('vote-submitted-msg').style.display='none';
+  document.getElementById('tally-section').style.display='none';
+  document.getElementById('tally-grid').innerHTML='';
+  show('s-day');
+}
+
+function selectVote(el) {
+  if (C.hasVoted) return;
+  document.querySelectorAll('#online-vote-grid .action-item').forEach(x=>x.className='action-item');
+  el.className='action-item sel-red';
+  voteSel=el.dataset.name;
+  document.getElementById('vote-submit-btn').disabled=false;
+}
+
+function submitVote() {
+  if (!voteSel||C.hasVoted) return;
+  C.hasVoted=true;
+  document.getElementById('vote-submit-btn').style.display='none';
+  document.getElementById('vote-submitted-msg').style.display='block';
+  if (isHost) hostReceiveVote(myName, voteSel);
+  else clientSend({ type:'vote', target:voteSel });
+}
+
+function sendChat() {
+  const input=document.getElementById('chat-input'), msg=input.value.trim();
+  if (!msg) return;
+  if (isHost) { broadcast({type:'chat',from:myName,message:msg}); appendChat(myName,msg); }
+  else clientSend({ type:'chat', message:msg });
+  input.value=''; input.focus();
+}
+
+function appendChat(from, message) {
+  const box=document.getElementById('chat-box');
+  const div=document.createElement('div');
+  div.className='chat-msg';
+  div.innerHTML=`<span class="sender">${from}:</span>${message}`;
+  box.appendChild(div); box.scrollTop=box.scrollHeight;
+}
+
+function renderTally(tally, remaining) {
+  document.getElementById('tally-section').style.display='block';
+  const total=Object.values(tally).reduce((s,v)=>s+v,0)||1;
+  document.getElementById('tally-grid').innerHTML=Object.entries(tally).sort((a,b)=>b[1]-a[1]).map(([name,count])=>{
+    const pct=Math.round((count/total)*100);
+    return `<div class="tally-item"><div class="tally-name">${name}</div><div class="tally-bar-wrap"><div class="tally-bar" style="width:${pct}%"></div></div><div class="tally-count">${count}</div></div>`;
+  }).join('');
+  document.getElementById('tally-remaining').textContent = remaining>0?`${remaining} player${remaining!==1?'s':''} yet to vote`:'All votes in!';
+}
+
+function showVoteResult(data) {
+  document.getElementById('vr-announce').innerHTML=data.message;
+  const storyEl=document.getElementById('vr-story');
+  if (data.story&&data.eliminated) { storyEl.style.display='block'; storyEl.textContent=`📰 "${data.eliminated}: ${data.story}"`; }
+  else storyEl.style.display='none';
+  document.getElementById('vr-status').innerHTML=`<div class="status-chip">👥 ${(data.alivePlayers||[]).length} alive</div>`;
+  document.getElementById('vr-client-hint').style.display=isHost?'none':'block';
+  if (!data.winner) show('s-vote-result');
+}
+
+function showGameOver(data) {
+  const winner=data.winner;
+  document.getElementById('go-banner').className=`win-banner ${winner}`;
+  document.getElementById('go-icon').textContent  = winner==='town'?'🏆':'🔴';
+  document.getElementById('go-title').textContent = winner==='town'?'Town Wins!':'Mafia Wins!';
+  document.getElementById('go-desc').textContent  = winner==='town'?'All Mafia eliminated. Justice prevails!':'Mafia controls the town. Better luck next time.';
+  document.getElementById('go-players').innerHTML=(data.allPlayers||[]).map(p=>
+    `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;${!p.alive?'text-decoration:line-through;color:var(--muted)':''}">${p.name}</span>
+      ${roleTag(p.role)}<span>${p.alive?'🟢':'💀'}</span>
+    </div>`
+  ).join('');
+  show('s-gameover');
+}
+
+// Init
+pnpRenderPlayerList();
+</script>
+</body>
+</html>
