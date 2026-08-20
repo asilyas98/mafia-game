@@ -17,7 +17,7 @@ workflows:
 
     scripts:
       - name: Install npm dependencies
-        script: npm ci
+        script: npm install
 
       - name: Generate Capacitor iOS project
         script: |
