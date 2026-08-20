@@ -34,11 +34,24 @@ workflows:
       - name: Set up keychain
         script: keychain initialize
 
-      - name: Fetch signing files from Apple Developer Portal
+      - name: Create distribution certificate
         script: |
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+          app-store-connect create-certificate \
+            --type IOS_DISTRIBUTION \
+            --save
+
+      - name: Add certificates to keychain
+        script: keychain add-certificates
+
+      - name: Create provisioning profile
+        script: |
+          CERT_ID=$(app-store-connect list-certificates --type IOS_DISTRIBUTION --json | python3 -c "import sys,json; certs=json.load(sys.stdin); print(certs[0]['id'])")
+          app-store-connect create-profile \
+            --bundle-id-identifier "$BUNDLE_ID" \
+            --certificate-resource-id "$CERT_ID" \
+            --name "Codemagic Mafia" \
             --type IOS_APP_STORE \
-            --create
+            --save
 
       - name: Set up code signing settings
         script: xcode-project use-profiles
