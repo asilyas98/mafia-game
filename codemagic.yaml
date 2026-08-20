@@ -36,8 +36,9 @@ workflows:
 
       - name: Create distribution certificate
         script: |
-          app-store-connect create-certificate \
+          app-store-connect certificates create \
             --type IOS_DISTRIBUTION \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
             --save
 
       - name: Add certificates to keychain
